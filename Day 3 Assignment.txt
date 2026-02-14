@@ -22,17 +22,20 @@ ip add 10.2.1.102 255.255.255.0
 end
 
 @S1
-conf t 
+conf t
 int e1/0
 no shut
 ip add 192.168.1.133 255.255.255.224
 end
 
-@S1
+@S2
 conf t
 int e1/0
 no shut
 ip add 10.2.2.133 255.255.255.0
+end
+
+#show ip int brief | ex una
 
 ***********************************************
 
@@ -43,26 +46,29 @@ conf t
 int e0/0
 switchport mode access
 switchport access vlan 10
-do show history (to check config)
-show vlan brief (to check if config to the right vlan)
+end
 
 @A2
 conf t
 int e1/0
 switchport mode access
 switchport access vlan 10
+end
 
 @D1
 conf t
 int e1/0
 switchport mode access
 switchport access vlan 100
+end
 
 @D2
 conf t
 int e1/0
 switchport mode access
 switchport access vlan 20
+end
+
 
 ***********************************************
 
@@ -72,8 +78,14 @@ switchport access vlan 20
 
 @P1
 conf t
-ip route 0.0.0.0 0.0.0.0 10.2.1.1 1 (D1 primary)
-ip route 0.0.0.0 0.0.0.0 10.2.1.2 10 (D2 secondary)
+ip route 0.0.0.0 0.0.0.0 10.2.1.1
+ip route 0.0.0.0 0.0.0.0 10.2.1.2 10
+end
+
+@P2
+conf t
+ip route 0.0.0.0 0.0.0.0 10.2.1.2
+ip route 0.0.0.0 0.0.0.0 10.2.1.1 10
 end
 
 @S1
@@ -81,54 +93,16 @@ conf t
 ip route 0.0.0.0 0.0.0.0 192.168.1.129
 end
 
-@P2
-conf t
-ip route 0.0.0.0 0.0.0.0 10.2.1.2 1
-ip route 0.0.0.0 0.0.0.0 10.2.1.1 10
+@S2
+conf t 
+ip route 0.0.0.0 0.0.0.0 10.2.2.2
 end
 
-@S2
-conf t
-ip route 0.0.0.0 0.0.0.0 10.2.2.2
-
-ping to test.
 
 ***********************************************
 
 4. EIGRP
 
-@D1
-conf t
-router eigrp 100
-network 10.2.1.0 0.0.0.255
-network 10.2.2.0 0.0.0.255
-network 192.168.1.128 0.0.0.31
-network 10.1.4.4 0.0.0.3 (find the subnet range 10.1.4.6 falls in)
-end
-
-to find subnet range
-10.1.4.6 > 255.255.255.252 > 4th, 4i (block size)
-
-subnet range
-1st 10.1.4.0 - 10.1.4.3
-2nd 10.1.4.4 - 10.1.4.7
-3rd 10.1.4.8 - 10.1.4.11
-
-10.1.4.6 falls in 10.1.4.4 - 10.1.4.7
-
-hence 10.1.4.6 network ip is 10.1.4.4
-
-@D2
-conf t 
-router eigrp 100
-network 10.2.1.0 0.0.0.255
-network 10.2.2.0 0.0.0.255
-network 192.168.1.128 0.0.0.31
-network 10.1.4.8 0.0.0.3
-end
-
-#show ip eigrp neighbors (to test)
-#show ip route eigrp
 
 @R4
 conf t
@@ -138,40 +112,41 @@ network 10.1.4.4 0.0.0.3
 network 10.1.4.8 0.0.0.3
 end
 
-show ip route eigrp (to test)
+@D1
+conf t
+router eigrp 100
+no auto-summary
+network 10.1.4.4 0.0.0.3
+network 10.2.1.0 0.0.0.255
+network 10.2.2.0 0.0.0.255
+network 192.168.1.128 0.0.0.31
+end
+
+@D2
+conf  t
+router eigrp 100 
+no auto-summary
+network 10.1.4.8 0.0.0.3
+network 10.2.1.0 0.0.0.255
+network 10.2.2.0 0.0.0.255
+network 192.168.1.128 0.0.0.31
+end
+
+#show ip eigrp neighbor
+
+
 
 ***********************************************
 
 5. OSPF
 
-Get loopback address of the ff: 
-#show ip int brief | ex una
-	R4 = 4.4.4.4
-	R3 = 3.3.3.3
-	R2 = 2.2.2.2
-	R1 = 1.1.1.1
-
 @R4
 conf t
-router ospf 1 
+router ospf 1
 router-id 4.4.4.4
 network 4.4.4.4 0.0.0.0 area 0
 network 10.1.1.8 0.0.0.3 area 0
 end
-
-
-get network ip for 10.1.1.9 and 10.1.1.10 is part of
-
-get subnet range:
-
-/30 = 4 block size
-
-10.1.1.0 - 10.1.1.3
-10.1.1.4 - 10.1.1.7
-10.1.1.8 - 10.1.1.11
-
-network ip: 10.1.1.8
-wildcard: (4th, 4i) 0.0.0.3
 
 @R3
 conf t
@@ -180,23 +155,33 @@ router-id 3.3.3.3
 network 3.3.3.3 0.0.0.0 area 0
 network 10.1.1.8 0.0.0.3 area 0
 network 10.1.1.4 0.0.0.3 area 0
-end
 
 @R2
 conf t
 router ospf 1
-router_id 2.2.2.2
-network 2.2.2.2 0.0.0.0 area 0
-network 10.1.1.4 0.0.0.3 area 0
-network 10.1.1.0 0.0.0.3 area 0
+router-id 2.2.2.2
+exit
+int lo2
+ip ospf 1 area 0
+exit
+int e1/1
+ip ospf 1 area 0 
+exit
+int e1/2
+ip ospf 1 area 0
+end
 
 @R1
 conf t
 router ospf 1
 router-id 1.1.1.1
-network 1.1.1.1 0.0.0.0 area 0
-network 10.1.1.0 0.0.0.3 area 0
-
+exit
+int lo1
+ip ospf 1 area 0
+exit
+int e1/0
+ip ospf 1 area 0
+end
 
 
 ***********************************************
@@ -207,29 +192,179 @@ network 10.1.1.0 0.0.0.3 area 0
 conf t
 int e1/2
 ip ospf network point-to-point
+end
 
 @R3
 conf t
 int e1/2
 ip ospf network point-to-point
+end
 
-
-@R2 #should have the priority of 255 on e1/2
-
+@R2
 conf t
 int e1/2
 ip ospf priority 255
+end
 
-@R1 #should have the priority of 0 on e1/0
-
+@R1
 conf t
 int e1/0
 ip ospf priority 0
+end
 
-#show ip ospf neighbor
 
 ***********************************************
 7. BGP
 
+@R1
+conf t
+router bgp 1
+bgp log-neighbor-change
+neighbor 209.9.9.3 remote-as 3
+neighbor 207.7.7.2 remote-as 2
+neighbor 208.8.8.4 remote-as 45
+address-family ipv4
+neighbor 209.9.9.3 activate
+neighbor 207.7.7.2 activate
+neighbor 208.8.8.4 activate
+network 209.9.9.0 mask 255.255.255.0
+network 207.7.7.0 mask 255.255.255.0
+network 208.8.8.0 mask 255.255.255.0
+end
+
+@I1
+conf t
+router bgp 45
+bgp log-neighbor-change
+neighbor 208.8.8.1 remote-as 1
+neighbor 24.2.4.2 remote-as 2
+neighbor 45.4.5.5 remote-as 45
+address-family ipv4
+neighbor 208.8.8.1 activate
+neighbor 24.2.4.2 activate
+neighbor 45.4.5.5 activate
+network 44.44.44.44 mask 255.255.255.255
+network 208.8.8.0 mask 255.255.255.0
+network 24.2.4.0 mask 255.255.255.0
+network 45.4.5.0 mask 255.255.255.0
+end
+
+@I2
+conf t
+router bgp 2
+bgp log-neighbor-change
+neighbor 207.7.7.1 remote-as 1
+neighbor 32.3.2.3 remote-as 3
+neighbor 25.2.5.5 remote-as 45
+neighbor 24.2.4.4 remote-as 45
+address-family ipv4
+neighbor 207.7.7.1 activate
+neighbor 32.3.2.3 activate
+neighbor 25.2.5.5 activate
+neighbor 24.2.4.4 activate
+network 22.22.22.22 mask 255.255.255.255
+network 207.7.7.0 mask 255.255.255.0
+network 32.3.2.0 mask 255.255.255.0
+network 25.2.5.0 mask 255.255.255.0
+network 24.2.4.0 mask 255.255.255.0
+end
+
+@I3
+conf t
+router bgp 3
+bgp log-neighbor-change
+neighbor 209.9.9.1 remote-as 1
+neighbor 32.3.2.2 remote-as 2
+neighbor 35.3.5.5 remote-as 45
+address-family ipv4
+neighbor 209.9.9.1 activate
+neighbor 32.3.2.2 activate
+neighbor 35.3.5.5 activate
+network 33.33.33.33 mask 255.255.255.255
+network 209.9.9.0 mask 255.255.255.0
+network 32.3.2.0 mask 255.255.255.0
+network 35.3.5.0 mask 255.255.255.0
+end
+
+@I4
+conf t
+router bgp 45
+bgp log-neighbor-change
+neighbor 35.3.5.3 remote-as 3
+neighbor 25.2.5.2 remote-as 2
+neighbor 45.4.5.4 remote-as 45
+address-family ipv4
+neighbor 35.3.5.3 activate
+neighbor 25.2.5.2 activate
+neighbor 45.4.5.4 activate
+network 55.55.55.55 mask 255.255.255.255
+network 8.8.8.8 mask 255.255.255.255
+network 35.3.5.0 mask 255.255.255.0
+network 25.2.5.0 mask 255.255.255.0
+network 45.4.5.0 mask 255.255.255.0
+end
+
+
+#show bgp summary
+#show ip route
+***********************************************
+
 8. Redistribute Routes
+
+
+@R4
+conf t
+router ospf 1
+redistribute eigrp 100 subnets
+exit
+router eigrp 100
+redistribute ospf 1 metric 10000 100 255 1 1500 
+end
+
+
+#to get metric value run show int e1/0 in R4 and get the following value in order:
+BW = 10000
+Delay (reduce by 1) = 100
+Reliability = 255
+Load = 1
+MTU = 1500
+
+#Default route propagation
+
+@R1
+conf t
+router ospf 1
+default-information originate always
+end
+
+***********************************************
 9. NAT
+
+#Static NAT
+P1 = 209.9.9.10
+P2 = 209.9.9.20
+S1 = 207.7.7.10
+S2 = 208.8.8.10
+
+
+#Identify what's inside and outside
+
+@R1
+conf t
+int range e1/1-3
+ip nat outside
+int e1/0
+ip nat inside
+!
+access-list 1 permit 10.0.0.0 0.255.255.255  
+access-list 1 permit 172.16.0.0 0.15.255.255 
+access-list 1 permit 192.168.0.0 0.0.255.255
+!
+ip nat inside source static 10.2.1.101 209.9.9.10
+ip nat inside source static 10.2.1.102 209.9.9.20
+ip nat inside source static 192.168.1.133 207.7.7.10
+ip nat inside source static 10.2.2.133 208.8.8.10
+
+
+#show ip nat translation
+***********************************************
